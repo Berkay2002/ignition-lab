@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ignition Lab | Interactive V8 engine</title>
+  <meta name="description" content="An interactive V8 engine built from equations. Explore 865 Blender-refined parts, integrate pressure into work, and hear synthesized exhaust in your browser.">
+  <meta name="author" content="Berkay Orhan">
+  <meta name="theme-color" content="#f6f8f9">
+  <meta property="og:title" content="Ignition Lab">
+  <meta property="og:description" content="Combustion, calculus, and 865 parts. A library-free browser engine lab.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/v8-assembled.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="model.css">
+</head>
+<body>
+  <header><h1>Ignition <span>/</span> Lab</h1><div class="actions"><button id="sound" class="accent">Start sound</button><button id="pause">Pause</button><button id="reset-view">Reset view</button></div></header>
+  <main>
+    <section class="engine-panel" aria-label="Interactive V8 cutaway">
+      <canvas id="engine" aria-label="Rotatable V8 cutaway. Drag to orbit and scroll to zoom." tabindex="0"></canvas>
+      <div id="part-labels" aria-hidden="true"></div>
+      <div class="canvas-note"><span>4.0 L · cross-plane</span></div>
+      <div class="sequence"><p>Firing sequence <span>· select a cylinder</span></p><div id="cylinders" role="group" aria-label="Select cylinder"></div></div>
+    </section>
+    <section class="layer-panel" aria-label="Assembly layers">
+      <div class="layer-heading"><h2>Assembly</h2><button id="show-all" title="Show every layer">Show all</button></div>
+      <div id="view-modes" role="group" aria-label="Engine view"><button data-mode="assembled">Assembled</button><button data-mode="cutaway" aria-pressed="true">Cutaway</button><button data-mode="exploded">Exploded</button></div>
+      <label class="explode-control" for="explode">Separation<input id="explode" type="range" min="0" max="100" value="0"><output id="explode-value">0%</output></label>
+      <div id="layer-list"></div>
+    </section>
+    <section class="part-inspector overlay" id="part-inspector" aria-label="Selected part" hidden><div><strong id="part-name"></strong><button id="clear-part" aria-label="Clear part selection">×</button></div><p id="part-description"></p><div class="part-actions"><button id="hide-part">Hide layer</button><button id="isolate-part">Isolate layer</button></div></section>
+    <aside>
+      <section class="analysis-panel overlay"><div class="chart-heading"><h2>P-V diagram</h2><span id="cylinder-title">Cylinder 1</span></div><canvas id="pv" aria-label="Pressure versus volume. Enclosed signed area is cycle work." role="img"></canvas>
+        <div class="formula">W = ∮ p dV</div>
+        <div class="metrics"><div><span>Cycle work <small>per cylinder</small></span><output id="work"></output></div><div><span>Indicated power <small>all 8 cylinders</small></span><output id="power"></output></div><div class="live-work"><span>Integral so far</span><output id="partial"></output></div></div>
+      </section>
+      <section class="controls overlay" aria-label="Engine parameters"><h2>Engine controls</h2>
+        <label for="rpm">Engine speed<input id="rpm" type="range" min="600" max="7000" step="50" value="2400"><output id="rpm-value" for="rpm"></output></label>
+        <label for="throttle">Throttle<input id="throttle" type="range" min="0" max="100" step="1" value="65"><output id="throttle-value" for="throttle"></output></label>
+        <label for="compression">Compression<input id="compression" type="range" min="6" max="14" step="0.1" value="10"><output id="compression-value" for="compression"></output></label>
+        <label for="advance">Spark advance<input id="advance" type="range" min="-10" max="45" step="1" value="18"><output id="advance-value" for="advance"></output></label>
+      </section>
+      <section class="tach-card overlay"><h2>Exhaust pulses</h2><div class="tach-reading"><output id="tach-rpm">2400</output><span>RPM</span></div><canvas id="pulses" aria-label="Synthesized exhaust event timing over 50 milliseconds" role="img"></canvas><p><output id="pulse-rate">160</output> events / s <span>8 × RPM / 120</span></p></section>
+    </aside>
+    <section class="timeline overlay" aria-label="Cycle playback">
+      <div class="scrubber"><label for="angle">Crank angle <output id="angle-value">0°</output></label><input id="angle" type="range" min="0" max="719.5" step="0.5" value="0"><div class="ticks"><span>0</span><span>180</span><span>360</span><span>540</span><span>720°</span></div></div>
+      <div class="strokes"><div id="stroke-labels"><span>Intake</span><span>Compression</span><span>Power</span><span>Exhaust</span></div><div id="stroke-track"><i></i></div><p id="live-state"></p></div>
+      <label class="speed-control" for="speed">Visual speed<select id="speed"><option value="30">30 RPM study</option><option value="60" selected>60 RPM study</option><option value="120">120 RPM study</option><option value="real">Real time</option></select></label>
+    </section>
+  </main>
+  <footer><button class="model-trigger" id="open-model" aria-label="Model details" title="Model details">i</button><a class="project-link" href="showcase.html">About &amp; assets ↗</a><p id="audio-status" role="status"></p></footer>
+  <dialog id="model-dialog" aria-labelledby="model-title">
+    <div class="model-heading"><div><p class="model-kicker">Inside the simulation</p><h2 id="model-title">From fuel to work.</h2></div><button id="close-model" aria-label="Close model details">×</button></div>
+    <div class="model-scroll">
+      <p class="model-lead">One cycle. Four connected ideas. The motion, pressure trace, and sound all start with the same engine geometry.</p>
+      <section class="model-step"><span class="step-number">01</span><div><h3>Geometry gives us volume</h3><p>The crank and connecting rod determine each piston’s position. That position sets the volume of its cylinder.</p>
+        <div class="math-box"><math display="block" aria-label="Volume equals clearance volume plus piston area times crank and rod displacement"><mi>V</mi><mo>(</mo><mi>θ</mi><mo>)</mo><mo>=</mo><msub><mi>V</mi><mi>c</mi></msub><mo>+</mo><mi>A</mi><mo>[</mo><mi>r</mi><mo>(</mo><mn>1</mn><mo>−</mo><mi>cos</mi><mi>θ</mi><mo>)</mo><mo>+</mo><mi>l</mi><mo>−</mo><msqrt><msup><mi>l</mi><mn>2</mn></msup><mo>−</mo><msup><mi>r</mi><mn>2</mn></msup><msup><mi>sin</mi><mn>2</mn></msup><mi>θ</mi></msqrt><mo>]</mo></math></div>
+        <p class="math-key"><i>A</i> piston area · <i>r</i> crank radius · <i>l</i> rod length · <i>V<sub>c</sub></i> clearance volume</p>
+        <div class="model-specs"><span><b>86 mm</b> bore &amp; stroke</span><span><b>143 mm</b> connecting rod</span><span><b>4.00 L</b> eight cylinders</span></div>
+      </div></section>
+      <section class="model-step"><span class="step-number">02</span><div><h3>Burning fuel raises pressure</h3><p>A smooth burn curve releases fuel energy. Piston work and heat lost to the walls reduce the gas’s internal energy.</p>
+        <div class="math-box"><math display="block" aria-label="Change in internal energy equals combustion heat minus pressure-volume work minus wall heat loss"><mfrac><mrow><mi>d</mi><mi>U</mi></mrow><mrow><mi>d</mi><mi>θ</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mi>d</mi><msub><mi>Q</mi><mtext>burn</mtext></msub></mrow><mrow><mi>d</mi><mi>θ</mi></mrow></mfrac><mo>−</mo><mi>p</mi><mfrac><mrow><mi>d</mi><mi>V</mi></mrow><mrow><mi>d</mi><mi>θ</mi></mrow></mfrac><mo>−</mo><mfrac><mrow><mi>d</mi><msub><mi>Q</mi><mtext>wall</mtext></msub></mrow><mrow><mi>d</mi><mi>θ</mi></mrow></mfrac></math><math display="block" aria-label="Pressure equals gamma minus one times internal energy divided by volume"><mi>p</mi><mo>=</mo><mfrac><mrow><mo>(</mo><mi>γ</mi><mo>−</mo><mn>1</mn><mo>)</mo><mi>U</mi></mrow><mi>V</mi></mfrac></math></div>
+        <p class="math-key">Integrated with fourth-order Runge-Kutta at 0.5° crank steps.</p>
+      </div></section>
+      <section class="model-step"><span class="step-number">03</span><div><h3>The loop encloses work</h3><p>Expansion adds work; compression and pumping subtract it. The signed area of the complete pressure-volume loop is the work of one cylinder over 720°.</p>
+        <div class="math-box"><math display="block" aria-label="Cycle work is the closed integral of pressure with respect to volume, approximated with trapezoids"><mi>W</mi><mo>=</mo><mo>∮</mo><mi>p</mi><mi>d</mi><mi>V</mi><mo>≈</mo><mo>∑</mo><mfrac><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>+</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub></mrow><mn>2</mn></mfrac><mo>(</mo><msub><mi>V</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>−</mo><msub><mi>V</mi><mi>i</mi></msub><mo>)</mo></math><math display="block" aria-label="Indicated power equals eight times cycle work times RPM divided by 120"><msub><mi>P</mi><mtext>ind</mtext></msub><mo>=</mo><mn>8</mn><mi>W</mi><mo>×</mo><mfrac><mtext>RPM</mtext><mn>120</mn></mfrac></math></div>
+        <p class="math-key">Indicated power is gas work before mechanical losses.</p>
+      </div></section>
+      <section class="model-step"><span class="step-number">04</span><div><h3>Exhaust events become sound</h3><p>Each exhaust opening excites a damped resonator in its cylinder bank. Modeled blowdown pressure controls the pulse strength.</p>
+        <div class="math-box"><math display="block" aria-label="Exhaust events per second equal eight times RPM divided by 120"><msub><mi>f</mi><mtext>events</mtext></msub><mo>=</mo><mfrac><mrow><mn>8</mn><mo>×</mo><mtext>RPM</mtext></mrow><mn>120</mn></mfrac></math></div>
+        <p class="math-key">Sound follows engine RPM. Study speed slows only the visible motion.</p>
+      </div></section>
+      <details class="model-assumptions"><summary>Assumptions &amp; constants <span>+</span></summary><div>
+        <p>This is a steady-cycle educational model. Changing a control solves a new cycle. RPM is prescribed; the simulation does not solve crank acceleration, mechanical loading, friction, knock, fluid flow, or chemical kinetics. The 3D assembly is illustrative, not manufacturing CAD.</p>
+        <dl><dt>Gas &amp; mixture</dt><dd>Ideal gas, γ = 1.35, air/fuel = 14.7</dd><dt>Fuel heat</dt><dd>44 MJ/kg × 0.93 efficiency</dd><dt>Temperatures</dt><dd>Inlet 310 K · wall 450 K</dd><dt>Wall heat transfer</dt><dd>130 W/(m² K), assumed constant</dd><dt>Intake / exhaust</dt><dd>(0.30 + 0.70 × throttle) bar / 1.06 bar</dd><dt>Valve timing</dt><dd>Ideal boundaries at dead centers; no overlap</dd><dt>Burn fraction</dt><dd>x<sub>b</sub> = (1 − exp(−6.9u³)) / (1 − exp(−6.9)), u ∈ [0,1]</dd><dt>Burn duration</dt><dd>55° + RPM × 0.002°</dd><dt>Firing order</dt><dd>1 · 8 · 4 · 3 · 6 · 5 · 7 · 2, one event every 90°</dd><dt>Acoustics</dt><dd>Pulse resonators; no exhaust-pipe fluid solver or recording</dd></dl>
+        <p>Background: <a href="https://www.grc.nasa.gov/www/k-12/BGP/ottoa.html" target="_blank" rel="noreferrer">NASA cycle thermodynamics</a> · <a href="https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/work-done-by-a-gas-3/" target="_blank" rel="noreferrer">Work done by a gas</a></p>
+      </div></details>
+    </div>
+  </dialog>
+
+  <script src="engine.js"></script><script src="renderer.js"></script><script src="geometry.js"></script><script src="assembly.js"></script><script src="blender-meshes.js"></script><script src="scene.js"></script><script src="app.js"></script>
+</body>
+</html>

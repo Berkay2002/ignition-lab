@@ -1,0 +1,11 @@
+.vercel/
+node_modules/
+dist/
+*.blend1
+*.blend2
+__pycache__/
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example

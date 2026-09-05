@@ -1,0 +1,13 @@
+{
+  "name": "ignition-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A library-free V8 engine lab with live thermodynamics and an open Blender assembly.",
+  "author": "Berkay Orhan",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/engine.cjs && node tests/audio.cjs && node tests/assets.cjs",
+    "build": "node scripts/build.mjs"
+  },
+  "engines": { "node": ">=22" }
+}

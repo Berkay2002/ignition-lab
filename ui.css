@@ -1,0 +1,8 @@
+/* Shared quiet chrome for the lab, model dialog, and project page. */
+:root{scrollbar-color:#a4b7c3 #edf2f5;scrollbar-width:thin}
+*{scrollbar-width:thin;scrollbar-color:#a4b7c3 #edf2f5}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#edf2f5;border-radius:8px}
+::-webkit-scrollbar-thumb{background:#a4b7c3;border:2px solid #edf2f5;border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:#748e9e}
+::selection{background:#d5e8ef;color:#263d4c}
