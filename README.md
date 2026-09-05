@@ -23,7 +23,12 @@ Drag to orbit, scroll to zoom, or focus the canvas and use the arrow keys. Selec
 
 The cylinder volume comes from slider-crank geometry. A Wiebe burn curve releases heat into an ideal gas; a fourth-order Runge-Kutta integrator follows its energy through compression and expansion. The signed area inside the pressure-volume loop gives cycle work:
 
-$$W = \oint p\,dV \qquad P_{ind} = 8W\frac{\mathrm{RPM}}{120}$$
+```math
+\begin{aligned}
+W &= \oint p\,\mathrm{d}V \\
+P_{\mathrm{ind}} &= 8W\frac{\mathrm{RPM}}{120}
+\end{aligned}
+```
 
 The model uses prescribed RPM and a steady cycle. It does **not** simulate crank acceleration, chemical kinetics, CFD, knock, or mechanical losses. The sound is synthesized from exhaust events, not a recording. [Read the equations, assumptions, and validation](docs/model.md).
 
@@ -33,8 +38,8 @@ The model uses prescribed RPM and a steady cycle. It does **not** simulate crank
 
 | Asset | Use |
 | --- | --- |
-| [v8-engine.blend](https://raw.githubusercontent.com/Berkay2002/ignition-lab/main/v8-engine.blend) | Editable scene, named collections, materials, studio lights, and an explosion controller. Saved and checked in Blender 5.2.1. |
-| [v8-engine.glb](https://raw.githubusercontent.com/Berkay2002/ignition-lab/main/v8-engine.glb) | Static assembled interchange model. |
+| [v8-engine.blend](https://github.com/Berkay2002/ignition-lab/releases/latest/download/v8-engine.blend) | Editable scene, named collections, materials, studio lights, and an explosion controller. Saved and checked in Blender 5.2.1. |
+| [v8-engine.glb](https://github.com/Berkay2002/ignition-lab/releases/latest/download/v8-engine.glb) | Static assembled interchange model. |
 | [Assembled render](v8-assembled.png) / [Exploded render](v8-exploded.png) | Full-resolution studio images. |
 
 In Blender, select **Assembly controls** and change its **explode** custom property. The saved scene has a zero-degree mechanical pose; JavaScript provides the live crank, piston, rod, and valve motion in the browser. The geometry was refined in Blender 4.5.9, then synchronized and saved in 5.2.1. This is educational geometry, not manufacturing CAD.
@@ -58,7 +63,7 @@ Open [localhost:8765](http://localhost:8765). There is no install or bundling st
 
 ## Verify and deploy
 
-With Node 22 or later:
+With Node 22 LTS:
 
 ```sh
 npm test
@@ -83,5 +88,3 @@ Vercel builds a static site from the explicit file list in `scripts/build.mjs`. 
 | `model.css`, `ui.css`, `style.css` | Typeset model dialog, shared theme, overlay layout |
 | `showcase.html` | Project page, demos, renders, and asset downloads |
 | `tests/` | Numerical, audio, and asset verification |
-
-Built by [Berkay Orhan](https://github.com/Berkay2002) with Codex and Blender. Code, models, and renders are released under the [MIT license](LICENSE). [Contributions and bug reports](CONTRIBUTING.md) are welcome.
