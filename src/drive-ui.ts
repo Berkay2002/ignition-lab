@@ -256,7 +256,7 @@ export class DrivingLab {
   private syncProfile() {
     const p = this.profile;
     get("profile-engine", HTMLParagraphElement).textContent =
-      `${p.engine} · ${p.peakPowerKw} kW · ${p.peakTorqueNm} N·m`;
+      `${p.engine} · ${p.peakPowerKw.toFixed(0)} kW · ${p.peakTorqueNm.toFixed(0)} N·m`;
     get("profile-specs", HTMLParagraphElement).textContent =
       `Model inputs: ${p.massKg} kg; CdA ${p.dragAreaM2.toFixed(2)} m²; tyre radius ${p.tyreRadiusM.toFixed(3)} m; final drive ${p.finalDrive}; ratios ${p.gears.join(" / ")}; shift ${p.shiftSeconds}s; drive efficiency ${(p.drivetrainEfficiency * 100).toFixed(0)}%.`;
     get("profile-assumptions", HTMLParagraphElement).textContent =
@@ -424,7 +424,7 @@ export class DrivingLab {
       right = w - 10;
     const maxX = dyno
       ? this.profile.redlineRpm
-      : Math.max(10, s.elapsed, base?.elapsed ?? 0);
+      : Math.max(5, s.elapsed, base?.elapsed ?? 0);
     const maxY = dyno
       ? Math.ceil(
           Math.max(this.profile.peakTorqueNm, this.profile.peakPowerKw) / 100,
