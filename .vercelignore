@@ -1,0 +1,7 @@
+.git/
+.vercel/
+.env*
+dist/
+node_modules/
+*.blend1
+*.blend2

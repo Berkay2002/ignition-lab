@@ -5,17 +5,17 @@ A V8 engine built from equations, with an open Blender assembly. Turn the thrott
 [![Model and asset checks](https://github.com/Berkay2002/ignition-lab/actions/workflows/checks.yml/badge.svg)](https://github.com/Berkay2002/ignition-lab/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-567b90.svg)](LICENSE)
 
-**[Open the interactive lab](https://ignition-lab.vercel.app/)** · **[Project showcase](https://ignition-lab.vercel.app/showcase.html)** · **[Download the Blender scene](https://github.com/Berkay2002/ignition-lab/releases/latest)**
+**[Open the interactive lab](https://ignition-lab-berkay.vercel.app/)** · **[Project showcase](https://ignition-lab-berkay.vercel.app/showcase.html)** · **[Download the Blender scene](https://github.com/Berkay2002/ignition-lab/releases/latest)**
 
-[![Assembled V8 studio render](v8-assembled.png)](https://ignition-lab.vercel.app/)
+[![Assembled V8 studio render](v8-assembled.png)](https://ignition-lab-berkay.vercel.app/)
 
 ## Try it
 
 | Demo | What to explore |
 | --- | --- |
-| [Assembled](https://ignition-lab.vercel.app/?view=assembled) | Orbit the engine, click a part, hide or isolate its assembly. |
-| [Cutaway](https://ignition-lab.vercel.app/?view=cutaway) | Follow the pistons, rods, and valve gear while the pressure loop advances. |
-| [Exploded](https://ignition-lab.vercel.app/?view=exploded) | Separate the ten layers and inspect the block, heads, bearings, and sump. |
+| [Assembled](https://ignition-lab-berkay.vercel.app/?view=assembled) | Orbit the engine, click a part, hide or isolate its assembly. |
+| [Cutaway](https://ignition-lab-berkay.vercel.app/?view=cutaway) | Follow the pistons, rods, and valve gear while the pressure loop advances. |
+| [Exploded](https://ignition-lab-berkay.vercel.app/?view=exploded) | Separate the ten layers and inspect the block, heads, bearings, and sump. |
 
 Drag to orbit, scroll to zoom, or focus the canvas and use the arrow keys. Select a cylinder to follow its cycle. Scrub crank angle to pause and inspect a moment. Adjust RPM, throttle, compression, and ignition advance to solve a new cycle. Sound starts only after you click **Start sound**; it follows engine RPM independently of the slower study animation.
 
