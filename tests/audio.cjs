@@ -25,8 +25,8 @@ function createProcessor(sampleRate = 48000) {
   return new Processor();
 }
 
-function configure(processor, rpm, amplitude, running = true) {
-  processor.port.onmessage({ data: { rpm, amplitude, running } });
+function configure(processor, rpm, amplitude, running = true, tone) {
+  processor.port.onmessage({ data: { rpm, amplitude, running, tone } });
 }
 
 function render(processor, samples, channelCount = 2) {
@@ -212,7 +212,7 @@ function runTests() {
     { rpm: 2400, amplitude: 2, running: true },
     { rpm: 2400, amplitude: 0.5, running: "yes" },
     { rpm: 599, amplitude: 0.5, running: true },
-    { rpm: 7001, amplitude: 0.5, running: true },
+    { rpm: 10001, amplitude: 0.5, running: true },
   ])
     boundary.port.onmessage({ data });
   assert.equal(boundary.rpm, 3200);
@@ -222,6 +222,213 @@ function runTests() {
   assert.equal(boundary.process([], [[]]), true);
   console.log(
     "Audio transitions, load response, stereo/mono, silence, reproducibility and message validation passed.",
+  );
+  runToneTests();
+}
+
+const toneDefaults = {
+  exhaust: "sport",
+  listening: "tailpipe",
+  crank: "cross-plane",
+  resonance: 1,
+  roughness: 1,
+  overrun: false,
+  disabledCylinder: null,
+  timingRetard: 0,
+  speedMS: 0,
+  distanceM: 0,
+};
+
+function toneRender(changes = {}, rpm = 2400, sampleRate = 48000) {
+  const processor = createProcessor(sampleRate);
+  configure(processor, rpm, 0.65, true, { ...toneDefaults, ...changes });
+  render(processor, sampleRate / 2);
+  return render(processor, sampleRate);
+}
+
+function runToneTests() {
+  const baseline = toneRender();
+  const modes = Object.fromEntries(
+    ["stock", "sport", "open"].map((exhaust) => [
+      exhaust,
+      statistics(toneRender({ exhaust })),
+    ]),
+  );
+  assert.ok(
+    modes.stock.rms < modes.sport.rms && modes.sport.rms < modes.open.rms,
+    "Exhaust restriction must change energy",
+  );
+  assert.ok(
+    modes.stock.brightness < modes.sport.brightness &&
+      modes.sport.brightness < modes.open.brightness,
+    "Exhaust restriction must change bandwidth",
+  );
+  const cabin = statistics(toneRender({ listening: "cabin" }));
+  assert.ok(
+    cabin.rms < modes.sport.rms * 0.6 &&
+      cabin.brightness < modes.sport.brightness * 0.5,
+    "Cabin must attenuate and low-pass the exhaust",
+  );
+  for (const option of [
+    { listening: "engine" },
+    { resonance: 0.65 },
+    { roughness: 1.8 },
+    { timingRetard: 30 },
+  ]) {
+    const output = toneRender(option);
+    const difference = output[0].reduce(
+      (sum, v, i) => sum + (v - baseline[0][i]) ** 2,
+      0,
+    );
+    assert.ok(
+      difference > 0.1,
+      `Tone setting must change waveform: ${JSON.stringify(option)}`,
+    );
+  }
+  const flat = toneRender({ crank: "flat-plane" });
+  // At 2400 RPM, each even-spaced flat-plane bank fires at 80 Hz.
+  // Cross-plane bank irregularity creates a substantial 20 Hz cycle-order component.
+  const crossCycle = powerAt(baseline[0], 20, 48000),
+    flatCycle = powerAt(flat[0], 20, 48000);
+  assert.ok(
+    crossCycle > flatCycle * 8,
+    "Crank layout must change each bank's firing spectrum",
+  );
+  for (let cylinder = 1; cylinder <= 8; cylinder++) {
+    const faulty = toneRender({
+      crank: "flat-plane",
+      disabledCylinder: cylinder,
+    });
+    const affected = cylinder % 2 ? 0 : 1;
+    assert.ok(
+      powerAt(faulty[affected], 20, 48000) >
+        powerAt(flat[affected], 20, 48000) * 8,
+      "Missing firing event must add the cycle-order component to the affected bank",
+    );
+  }
+  const nearby = statistics(
+    toneRender({ listening: "roadside", distanceM: 5 }),
+  );
+  const distant = statistics(
+    toneRender({ listening: "roadside", distanceM: 100 }),
+  );
+  assert.ok(
+    distant.rms < nearby.rms / 8,
+    "Roadside spreading must attenuate with distance",
+  );
+  const observed = [];
+  for (const distanceM of [-100, 100]) {
+    const [left, right] = toneRender({
+      listening: "roadside",
+      speedMS: 30,
+      distanceM,
+    });
+    const mono = left.map((v, i) => (v + right[i]) / 2);
+    const frequency =
+      (160 * 343) / (343 + (30 * distanceM) / Math.hypot(5, distanceM));
+    assert.ok(
+      powerAt(mono, frequency, 48000) > powerAt(mono, 160, 48000) * 20,
+      "Doppler must follow radial velocity, including its sign",
+    );
+    const l = statistics([left]).rms,
+      r = statistics([right]).rms;
+    assert.ok(
+      distanceM < 0 ? l > r : r > l,
+      "Roadside stereo direction must follow observer-relative position",
+    );
+    observed.push(frequency);
+  }
+  const overrun = [false, true].map((enabled) => {
+    const processor = createProcessor();
+    const tone = { ...toneDefaults, overrun: enabled };
+    configure(processor, 4000, 0.9, true, tone);
+    render(processor, 48000);
+    configure(processor, 4000, 0.02, true, tone);
+    return render(processor, 24000);
+  });
+  assert.ok(
+    statistics(overrun[1]).rms > statistics(overrun[0]).rms,
+    "Optional afterfire must only add energy after closure",
+  );
+  assert.deepEqual(
+    toneRender({ overrun: true }),
+    baseline,
+    "Overrun switch must not generate pops at steady throttle",
+  );
+  const changing = createProcessor(),
+    unchanged = createProcessor();
+  for (const p of [changing, unchanged]) {
+    configure(p, 2400, 0.65);
+    render(p, 24000);
+  }
+  configure(changing, 2400, 0.65, true, {
+    ...toneDefaults,
+    exhaust: "open",
+    listening: "engine",
+    resonance: 1.5,
+    roughness: 1.8,
+    timingRetard: 30,
+  });
+  assert.ok(
+    Math.abs(render(changing, 128)[0][0] - render(unchanged, 128)[0][0]) <
+      0.002,
+    "Tone changes must ramp without a hard sample jump",
+  );
+  let extendedCases = 0;
+  for (const rate of [44100, 48000, 96000])
+    for (const rpm of [600, 10000])
+      for (const listening of ["tailpipe", "engine", "cabin", "roadside"]) {
+        const tone = {
+          ...toneDefaults,
+          exhaust: "open",
+          crank: "flat-plane",
+          listening,
+          resonance: 1.5,
+          roughness: 1.8,
+          timingRetard: 30,
+          disabledCylinder: 8,
+          speedMS: 120,
+          distanceM: -1000,
+        };
+        const p = createProcessor(rate);
+        configure(p, rpm, 1, true, tone);
+        assert.ok(statistics(render(p, rate)).peak <= 0.820001);
+        configure(p, rpm, 1, false, tone);
+        render(p, rate);
+        assert.ok(statistics(render(p, 256)).peak < 1e-7);
+        extendedCases++;
+      }
+  for (const bad of [
+    { resonance: NaN },
+    { resonance: 0.64 },
+    { roughness: 1.81 },
+    { exhaust: "invalid" },
+    { listening: "invalid" },
+    { crank: "invalid" },
+    { disabledCylinder: 1.5 },
+    { disabledCylinder: 9 },
+    { timingRetard: 31 },
+    { speedMS: -1 },
+    { distanceM: 10001 },
+    { overrun: 1 },
+  ]) {
+    const p = createProcessor();
+    configure(p, 3200, 0.4, false);
+    configure(p, 9000, 1, true, { ...toneDefaults, ...bad });
+    assert.equal(
+      p.rpm,
+      3200,
+      "Malformed tone must reject the message atomically",
+    );
+  }
+  console.log(
+    JSON.stringify({
+      exhaustModes: modes,
+      cabin,
+      crossCycleToFlat: crossCycle / flatCycle,
+      roadsideFiringHz: observed,
+      extendedCases,
+    }),
   );
 }
 

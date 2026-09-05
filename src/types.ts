@@ -8,6 +8,19 @@ export type AudioParameters = {
   rpm: number;
   amplitude: number;
   running: boolean;
+  tone?: AudioTone;
+};
+export type AudioTone = {
+  exhaust: "stock" | "sport" | "open";
+  listening: "tailpipe" | "engine" | "cabin" | "roadside";
+  crank: "cross-plane" | "flat-plane";
+  resonance: number;
+  roughness: number;
+  overrun: boolean;
+  disabledCylinder: number | null;
+  timingRetard: number;
+  speedMS: number;
+  distanceM: number;
 };
 export type MeshName =
   | "cylinder"
