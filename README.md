@@ -16,6 +16,7 @@ A V8 engine built from equations, with an open Blender assembly. Turn the thrott
 | [Assembled](https://ignition-lab-berkay.vercel.app/?view=assembled) | Orbit the engine, click a part, hide or isolate its assembly. |
 | [Cutaway](https://ignition-lab-berkay.vercel.app/?view=cutaway) | Follow the pistons, rods, and valve gear while the pressure loop advances. |
 | [Exploded](https://ignition-lab-berkay.vercel.app/?view=exploded) | Separate the ten layers and inspect the block, heads, bearings, and sump. |
+| [Driving lab](https://ignition-lab-berkay.vercel.app/?mode=drive) | Run acceleration, braking or dyno scenarios; compare six vehicle profiles and record video with sound. |
 
 Drag to orbit, scroll to zoom, or focus the canvas and use the arrow keys. Select a cylinder to follow its cycle. Scrub crank angle to pause and inspect a moment. Adjust RPM, throttle, compression, and ignition advance to solve a new cycle. Sound starts only after you click **Start sound**; it follows engine RPM independently of the slower study animation.
 
@@ -30,7 +31,21 @@ P_{\mathrm{ind}} &= 8W\frac{\mathrm{RPM}}{120}
 \end{aligned}
 ```
 
-The model uses prescribed RPM and a steady cycle. It does **not** simulate crank acceleration, chemical kinetics, CFD, knock, or mechanical losses. The sound is synthesized from exhaust events, not a recording. [Read the equations, assumptions, and validation](docs/model.md).
+Engine study uses prescribed RPM and a steady cycle. It does **not** simulate crank acceleration, chemical kinetics, CFD, knock, or mechanical losses. The sound is synthesized from exhaust events, not a recording. [Read the equations, assumptions, and validation](docs/model.md).
+
+## Driving and sound
+
+[![Driving lab with a calculated Mustang scenario and speed trace](driving-lab.png)](https://ignition-lab-berkay.vercel.app/?mode=drive)
+
+[Open the driving lab](https://ignition-lab-berkay.vercel.app/?mode=drive) for 0 to 100, 100 to 200, 80 to 160 km/h, braking, a single-gear dyno sweep, or free drive. Vehicle speed comes from integrated wheel force, traction, drag and rolling resistance. RPM follows gearing and a simplified clutch/shift model. No target acceleration time is prescribed.
+
+Choose an Audi R8, Audi RS 6, Mustang GT, AMG C 63 S, Corvette Stingray or Ferrari 458 profile. Manufacturer peak specifications are sourced; estimated torque curves and unverified inputs are identified in [profile notes](docs/profiles.md). These are model outputs, not measured car performance. The shared 4.0 L engine geometry and original pressure-volume study remain separate from the vehicle models.
+
+Stock, sports and open exhausts change the sound processing. Listen from the tailpipes, engine bay, cabin or roadside. Cross-plane and flat-plane bank cadence, cylinder faults, timing retard and optional throttle-closure afterfire affect the generated waveform. The sound is an approximation, not an authenticated recording of a named car. A privately supplied Audi recording informed broad spectral tuning; it is not distributed or used as a playback layer.
+
+[Hear three generated 100 to 200 demos](https://ignition-lab-berkay.vercel.app/showcase.html#driving). These files run the same vehicle model and audio processor offline.
+
+Completed scenarios can be overlaid and exported as JSON. Record video + sound captures the engine, calculated telemetry, trace, generic pressure-volume reference and synthesized audio locally. Compare the last two clips and download them. Recording stops at scenario completion or after 60 seconds; browser codec support varies. [Calculation, recording and validation details](docs/driving.md).
 
 ## Open 3D assets
 
@@ -73,7 +88,7 @@ npm run check
 npm run build
 ```
 
-The check command runs strict typechecking, formatting checks, a production build, and the tests. The tests cover 81 parameter combinations, geometric constraints, shared crank pins, positive finite pressures, energy balance, integration convergence, and 45 audio combinations across five RPM settings, three loads, and three sample rates. Asset checks validate mesh normals, the 1,494-part GLB, local references, and compiled JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
+The check command runs strict typechecking, formatting checks, a production build, and the tests. Tests cover 81 thermodynamic parameter combinations, geometric constraints, shared crank pins, energy balance and integration convergence. The audio suite covers 45 baseline and 24 extreme configurations, filtering, cylinder faults, cadence and Doppler. Vehicle tests cover all 36 profile/scenario combinations, power bounds, braking traction, shifts and timestep convergence. Asset checks validate mesh normals, the 1,494-part GLB, local references, and compiled JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
 
 At the default settings the model produces 663.2 J per cylinder per cycle and 106.1 kW indicated power. The energy residual is 0.042 J; halving the integration step changes work by 0.014 J. These checks establish internal consistency, not agreement with an actual engine.
 
@@ -88,7 +103,7 @@ blender --background --python scripts/blender-refine.py -- --templates
 blender --background --python scripts/blender-refine.py -- --assembly model/assembly.json --render
 ```
 
-`model/assembly.json` is the exported zero-degree pose with all layers visible. After changing the browser assembly, replace that snapshot using `JSON.stringify(window.v8Lab.exportAssembly())` in the browser console before regenerating. Rebuild the sound demo with `npm run build` followed by `node scripts/render-audio-demo.cjs`.
+`model/assembly.json` is the exported zero-degree pose with all layers visible. After changing the browser assembly, replace that snapshot using `JSON.stringify(window.v8Lab.exportAssembly())` in the browser console before regenerating. Rebuild the sound demos with `npm run build`, `node scripts/render-audio-demo.cjs`, and `node scripts/render-driving-demo.mjs`.
 
 ## Inside the repo
 
@@ -100,6 +115,8 @@ blender --background --python scripts/blender-refine.py -- --assembly model/asse
 | `src/renderer.ts` | Pressure-volume plot |
 | `src/app.ts` | Typed UI state, animation, orbit, audio lifecycle |
 | `src/exhaust-worklet.ts` | Typed audio processor and message boundary |
+| `src/vehicle.ts`, `src/profiles.ts` | Integrated driving model and sourced vehicle profile inputs |
+| `src/drive-ui.ts`, `src/recording.ts` | Scenario controls, run comparison, JSON and local video export |
 | `src/types.ts`, `src/blender-assets.ts` | Spatial/color tuples, shared contracts, asset validation |
 | `model.css`, `ui.css`, `style.css` | Typeset model dialog, shared theme, overlay layout |
 | `showcase.html` | Project page, demos, renders, and asset downloads |

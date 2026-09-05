@@ -227,6 +227,7 @@ function render(
   selected: number,
   camera: Camera,
   assembly: AssemblyState,
+  force = false,
 ) {
   if (!state) state = init(canvas);
   const { gl, program, U } = state,
@@ -249,7 +250,7 @@ function render(
     assembly.selected?.layer,
     ...Object.values(model.cfg),
   ].join("|");
-  if (lastFrame?.signature === signature) return lastFrame.labels;
+  if (!force && lastFrame?.signature === signature) return lastFrame.labels;
   if (
     canvas.width !== Math.round(w * dpr) ||
     canvas.height !== Math.round(h * dpr)

@@ -10,6 +10,7 @@ export const publicFiles = [
   "style.css",
   "model.css",
   "ui.css",
+  "driving.css",
   "showcase.css",
   "blender-meshes.js",
   "favicon.svg",
@@ -18,6 +19,10 @@ export const publicFiles = [
   "v8-assembled.png",
   "v8-exploded.png",
   "v8-exhaust-demo.wav",
+  "drive-audi-r8.wav",
+  "drive-mustang-gt.wav",
+  "drive-ferrari-458.wav",
+  "driving-demos.json",
   "LICENSE",
 ];
 

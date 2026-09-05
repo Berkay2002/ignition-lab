@@ -1,4 +1,6 @@
 import { Engine } from "./engine.js";
+import { DrivingLab } from "./drive-ui.js";
+import { RecordingStudio } from "./recording.js";
 import type { EngineConfig } from "./engine.js";
 import { Renderer } from "./renderer.js";
 import { Scene } from "./scene.js";
@@ -10,6 +12,7 @@ type AudioGraph = {
   node: AudioWorkletNode;
   gain: GainNode;
   analyser: AnalyserNode;
+  capture: MediaStreamAudioDestinationNode;
   waveform: Float32Array<ArrayBuffer>;
 };
 type OrbitPointer = {
@@ -90,6 +93,31 @@ let labels: Label[] = [],
   pointer: OrbitPointer | null = null,
   frame = 0;
 const buttons = new Map<number, HTMLButtonElement>();
+let recording: RecordingStudio | null = null;
+let audioClock = 0;
+const driving = new DrivingLab({
+  onMode: () => {
+    setRunning(true);
+    if (!driving.active) solve();
+    const note = document.querySelector(".canvas-note span");
+    if (note)
+      note.textContent = driving.active
+        ? "Shared 4.0 L cutaway · motion slowed"
+        : "4.0 L · cross-plane";
+  },
+  onStart: () => setRunning(true),
+  onReset: () => recording?.stop(),
+});
+recording = new RecordingStudio({
+  audioStream: async () => {
+    await setSound(true);
+    if (!audio)
+      throw new Error("Engine audio could not start. Try Start sound first.");
+    return audio.capture.stream;
+  },
+  startRun: () => driving.start(),
+  snapshot: () => driving.snapshot(),
+});
 const modelDialog = $("model-dialog");
 $("open-model").onclick = () => modelDialog.showModal();
 $("close-model").onclick = () => modelDialog.close();
@@ -214,12 +242,17 @@ function select(id: number) {
 function audioParameters() {
   if (!audio) return;
   const parameters: AudioParameters = {
-    rpm: cfg.rpm,
-    amplitude: Math.max(
-      0.03,
-      Math.min(1, (model.exhaustPressure - 106000) / 550000),
-    ),
-    running: running && !document.hidden,
+    rpm: driving.active ? driving.state.rpm : cfg.rpm,
+    amplitude: driving.active
+      ? 0.04 + 0.96 * driving.state.throttle
+      : Math.max(0.03, Math.min(1, (model.exhaustPressure - 106000) / 550000)),
+    running:
+      running &&
+      !document.hidden &&
+      (!driving.active ||
+        driving.state.status === "running" ||
+        driving.state.status === "ready"),
+    ...(driving.active ? { tone: driving.tone } : {}),
   };
   audio.node.port.postMessage(parameters);
 }
@@ -363,7 +396,7 @@ $("engine").addEventListener("keydown", (e) => {
     );
   }
 });
-$("sound").onclick = async () => {
+async function setSound(enabled: boolean) {
   if (startingAudio) return;
   startingAudio = true;
   let openingContext: AudioContext | null = null;
@@ -390,14 +423,16 @@ $("sound").onclick = async () => {
         2 ** Math.ceil(Math.log2(context.sampleRate * 0.05 + 1024)),
       );
       const waveform = new Float32Array(analyser.fftSize);
+      const capture = context.createMediaStreamDestination();
       gain.gain.value = 0;
       node.connect(analyser).connect(gain).connect(context.destination);
-      audio = { context, node, gain, analyser, waveform };
+      gain.connect(capture);
+      audio = { context, node, gain, analyser, waveform, capture };
       openingContext = null;
       audioParameters();
     }
     await audio.context.resume();
-    audible = !audible;
+    audible = enabled;
     audio.gain.gain.setTargetAtTime(
       audible ? 0.35 : 0,
       audio.context.currentTime,
@@ -416,6 +451,9 @@ $("sound").onclick = async () => {
   } finally {
     startingAudio = false;
   }
+}
+$("sound").onclick = () => {
+  void setSound(!audible);
 };
 document.addEventListener("visibilitychange", () => {
   last = performance.now();
@@ -428,8 +466,20 @@ document.addEventListener("visibilitychange", () => {
     );
 });
 function draw(now: number) {
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const elapsed = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(elapsed, 0.05);
   last = now;
+  driving.tick(Math.min(elapsed, 0.25), running && !document.hidden);
+  const actualRpm = driving.active ? driving.state.rpm : cfg.rpm;
+  if (driving.active) {
+    $("tach-rpm").textContent = actualRpm.toFixed(0);
+    $("pulse-rate").textContent = (actualRpm / 15).toFixed(0);
+  }
+  audioClock += dt;
+  if (audioClock >= 0.04) {
+    audioClock = 0;
+    audioParameters();
+  }
   assembly.explode +=
     (assembly.targetExplode - assembly.explode) * (1 - Math.exp(-8 * dt));
   if (Math.abs(assembly.explode - assembly.targetExplode) < 0.0001)
@@ -445,17 +495,45 @@ function draw(now: number) {
     orbitVelocity.yaw *= decay;
     orbitVelocity.elevation *= decay;
   }
-  if (running && !document.hidden) {
+  if (
+    running &&
+    !document.hidden &&
+    (!driving.active ||
+      driving.state.status === "running" ||
+      driving.state.status === "ready")
+  ) {
     const speed = $("speed").value;
     crank = Engine.mod(
-      crank + dt * (speed === "real" ? cfg.rpm : Number(speed)) * 6,
+      crank +
+        dt *
+          (driving.active
+            ? Math.min(actualRpm, 120)
+            : speed === "real"
+              ? cfg.rpm
+              : Number(speed)) *
+          6,
       720,
     );
   }
   const phase = Engine.phase(crank, selected),
     sample = Engine.sampleAt(model, phase);
-  labels = Scene.render($("engine"), model, crank, selected, camera, assembly);
-  Renderer.pv($("pv"), model, phase);
+  labels = Scene.render(
+    $("engine"),
+    model,
+    crank,
+    selected,
+    camera,
+    assembly,
+    recording?.active ?? false,
+  );
+  if (!driving.active) Renderer.pv($("pv"), model, phase);
+  recording?.draw($("engine"), driving.plot, driving.snapshot(), model, phase);
+  if (
+    recording?.active &&
+    driving.active &&
+    (driving.state.status === "complete" || driving.state.status === "limited")
+  )
+    recording?.stop();
   for (const el of labelElements) el.hidden = true;
   for (const label of labels) {
     const el = labelElements[label.id - 1];
@@ -485,7 +563,7 @@ function draw(now: number) {
     px.stroke();
   }
   px.beginPath();
-  const rate = cfg.rpm / 15;
+  const rate = actualRpm / 15;
   const liveAudio = audio && audible ? audio : null;
   let signalStart = 0,
     signalLength = 0;
@@ -565,6 +643,8 @@ if (isViewMode(initialView)) {
 }
 syncAssembly();
 solve();
+if (new URLSearchParams(location.search).get("mode") === "drive")
+  driving.setMode(true);
 setRunning(running);
 requestAnimationFrame(draw);
 // Read-only diagnostics for numerical and browser verification.
@@ -580,6 +660,12 @@ const diagnostics = {
       running,
       audible,
       audioState: audio?.context.state,
+      driving: {
+        active: driving.active,
+        ...driving.snapshot(),
+        status: driving.state.status,
+      },
+      recording: recording?.active ?? false,
       camera: { ...camera },
       assembly: {
         mode: assembly.mode,

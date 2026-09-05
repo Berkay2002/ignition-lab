@@ -1,8 +1,11 @@
 import { Engine } from "./engine.js";
 import type { CycleModel } from "./engine.js";
-function setup(canvas: HTMLCanvasElement) {
-  const w = canvas.clientWidth,
-    h = canvas.clientHeight,
+function setup(
+  canvas: HTMLCanvasElement,
+  size?: { width: number; height: number },
+) {
+  const w = size?.width ?? canvas.clientWidth,
+    h = size?.height ?? canvas.clientHeight,
     dpr = Math.min(devicePixelRatio || 1, 2);
   if (
     canvas.width !== Math.round(w * dpr) ||
@@ -17,8 +20,13 @@ function setup(canvas: HTMLCanvasElement) {
   ctx.clearRect(0, 0, w, h);
   return { ctx, w, h };
 }
-function pv(canvas: HTMLCanvasElement, model: CycleModel, phase: number) {
-  const { ctx, w, h } = setup(canvas),
+function pv(
+  canvas: HTMLCanvasElement,
+  model: CycleModel,
+  phase: number,
+  size?: { width: number; height: number },
+) {
+  const { ctx, w, h } = setup(canvas, size),
     left = 44,
     right = w - 10,
     top = 27,

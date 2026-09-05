@@ -1,0 +1,26 @@
+[
+  {
+    "profile": "Audi R8 4.2 FSI · 2007",
+    "scenario": "100 to 200 km/h",
+    "file": "drive-audi-r8.wav",
+    "seconds": 9.497045699832638,
+    "status": "complete",
+    "source": "calculated vehicle model and procedural worklet; not a production car recording"
+  },
+  {
+    "profile": "Ford Mustang GT 5.0 · 2018",
+    "scenario": "100 to 200 km/h",
+    "file": "drive-mustang-gt.wav",
+    "seconds": 9.44120611164714,
+    "status": "complete",
+    "source": "calculated vehicle model and procedural worklet; not a production car recording"
+  },
+  {
+    "profile": "Ferrari 458 Italia · 2010",
+    "scenario": "100 to 200 km/h",
+    "file": "drive-ferrari-458.wav",
+    "seconds": 6.034021699857433,
+    "status": "complete",
+    "source": "calculated vehicle model and procedural worklet; not a production car recording"
+  }
+]
