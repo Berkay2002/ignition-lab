@@ -34,7 +34,7 @@ The model uses prescribed RPM and a steady cycle. It does **not** simulate crank
 
 ## Open 3D assets
 
-865 named parts in ten groups: block, crank and pistons, main bearings, oil pan, cylinder heads, valvetrain, valve covers, intake, exhaust, and timing/flywheel. Details include bore liners, piston rings, fasteners, springs, ribbed covers, beveled castings, and hollow covers and sump.
+1,494 named parts in ten groups: block, crank and pistons, main bearings, oil pan, cylinder heads, valvetrain, valve covers, intake, exhaust, and timing/flywheel. The detailed assembly includes recessed hex fasteners, hollow pistons with valve reliefs and wrist-pin bores, ignition coils and leads, fuel rails and injectors, an alternator and belt drive, a water pump, starter, oil filter, pickup and windage tray. Machined nameplates, cast ribs and swept headers complete the exterior.
 
 | Asset | Use |
 | --- | --- |
@@ -42,7 +42,9 @@ The model uses prescribed RPM and a steady cycle. It does **not** simulate crank
 | [v8-engine.glb](https://github.com/Berkay2002/ignition-lab/releases/latest/download/v8-engine.glb) | Static assembled interchange model. |
 | [Assembled render](v8-assembled.png) / [Exploded render](v8-exploded.png) | Full-resolution studio images. |
 
-In Blender, select **Assembly controls** and change its **explode** custom property. The saved scene has a zero-degree mechanical pose; JavaScript provides the live crank, piston, rod, and valve motion in the browser. The geometry was refined in Blender 4.5.9, then synchronized and saved in 5.2.1. This is educational geometry, not manufacturing CAD.
+In Blender, select **Assembly controls** and change its **explode** custom property. The saved scene has a zero-degree mechanical pose; the browser provides live crank, piston, rod, and valve motion. The latest detail pass, materials, GLB and studio renders were built in Blender 5.2.1. This is educational geometry, not manufacturing CAD.
+
+The sound uses separate cross-plane exhaust banks, shaped blowdown pulses, lossy pipe reflections and resonant body tones. Pressure-derived load changes the strength and brightness; RPM and load transitions are smoothed. It is tuned procedural audio, not a calibrated acoustic simulation. [Play the idle/rev/coast demo](https://ignition-lab-berkay.vercel.app/showcase.html#sound), or use Start sound in the lab to see the actual waveform as you adjust the engine.
 
 <details>
 <summary>See the exploded render</summary>
@@ -71,13 +73,22 @@ npm run check
 npm run build
 ```
 
-The check command runs strict typechecking, formatting checks, a production build, and the tests. The tests cover 81 parameter combinations, geometric constraints, shared crank pins, positive finite pressures, energy balance, integration convergence, and bounded audio at 600, 2400, and 7000 RPM. Asset checks validate mesh normals, the 865-part GLB, local references, and compiled JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
+The check command runs strict typechecking, formatting checks, a production build, and the tests. The tests cover 81 parameter combinations, geometric constraints, shared crank pins, positive finite pressures, energy balance, integration convergence, and 45 audio combinations across five RPM settings, three loads, and three sample rates. Asset checks validate mesh normals, the 1,494-part GLB, local references, and compiled JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
 
 At the default settings the model produces 663.2 J per cylinder per cycle and 106.1 kW indicated power. The energy residual is 0.042 J; halving the integration step changes work by 0.014 J. These checks establish internal consistency, not agreement with an actual engine.
 
 Vercel runs `npm ci --include=dev` and `npm run build`. TypeScript emits ES2022 modules into `dist/js/`, and `scripts/site.mjs` copies the public pages and assets into `dist/`. Connect a fork to Vercel using the included `vercel.json`; no environment variables or backend are required. TypeScript and Prettier are pinned development dependencies, with versions recorded in the lockfile.
 
 The generated `blender-meshes.js` remains an asset rather than a hand-maintained TypeScript source file. Its data is validated at the typed renderer boundary. The audio worklet is compiled separately; its input messages are checked before updating processor state.
+
+To regenerate the public model and renders with Blender 5.2.1:
+
+```sh
+blender --background --python scripts/blender-refine.py -- --templates
+blender --background --python scripts/blender-refine.py -- --assembly model/assembly.json --render
+```
+
+`model/assembly.json` is the exported zero-degree pose with all layers visible. After changing the browser assembly, replace that snapshot using `JSON.stringify(window.v8Lab.exportAssembly())` in the browser console before regenerating. Rebuild the sound demo with `npm run build` followed by `node scripts/render-audio-demo.cjs`.
 
 ## Inside the repo
 

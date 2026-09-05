@@ -29,7 +29,10 @@ export function readBlenderMeshes(): MeshData | null {
     !("spring" in value && isVertices(value.spring)) ||
     !("sump" in value && isVertices(value.sump)) ||
     !("flange" in value && isVertices(value.flange)) ||
-    !("coverShell" in value && isVertices(value.coverShell))
+    !("coverShell" in value && isVertices(value.coverShell)) ||
+    !("hex" in value && isVertices(value.hex)) ||
+    !("badge" in value && isVertices(value.badge)) ||
+    !("piston" in value && isVertices(value.piston))
   )
     throw new Error("Incomplete Blender mesh asset.");
   return {
@@ -45,5 +48,8 @@ export function readBlenderMeshes(): MeshData | null {
     sump: value.sump,
     flange: value.flange,
     coverShell: value.coverShell,
+    hex: value.hex,
+    badge: value.badge,
+    piston: value.piston,
   };
 }

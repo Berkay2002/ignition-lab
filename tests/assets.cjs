@@ -6,9 +6,9 @@ const root = path.join(__dirname, "..");
 const read = (name) => fs.readFileSync(path.join(root, name));
 const context = {};
 vm.runInNewContext(read("blender-meshes.js").toString(), context);
-assert.equal(context.BlenderAssetInfo.parts, 865);
+assert.equal(context.BlenderAssetInfo.parts, 1494);
 assert.equal(context.BlenderAssetInfo.validatedWith, "5.2.1 LTS");
-assert.equal(Object.keys(context.BlenderMeshes).length, 12);
+assert.equal(Object.keys(context.BlenderMeshes).length, 15);
 for (const [name, mesh] of Object.entries(context.BlenderMeshes)) {
   assert.ok(
     mesh.length > 0 && mesh.length % 18 === 0,
@@ -33,7 +33,33 @@ const scene = JSON.parse(
     .toString()
     .trim(),
 );
-assert.equal(scene.nodes.filter((node) => node.mesh !== undefined).length, 865);
+assert.equal(
+  scene.nodes.filter((node) => node.mesh !== undefined).length,
+  1494,
+);
+for (const name of [
+  "Alternator",
+  "Serpentine belt",
+  "Spark plug 8",
+  "Fuel injector 8",
+  "Oil pickup & windage tray",
+  "Right V8 nameplate",
+])
+  assert.ok(
+    scene.nodes.some((node) => node.extras?.part === name),
+    `${name}: included in public GLB`,
+  );
+const assembly = JSON.parse(read("model/assembly.json"));
+assert.equal(assembly.parts.length, context.BlenderAssetInfo.parts);
+assert.equal(new Set(assembly.parts.map((part) => part.layer)).size, 10);
+for (const part of assembly.parts) {
+  assert.ok(part.size.every((value) => Number.isFinite(value) && value > 0));
+  assert.ok([...part.center, ...part.basis.flat()].every(Number.isFinite));
+}
+const demo = read("v8-exhaust-demo.wav");
+assert.equal(demo.subarray(0, 4).toString(), "RIFF");
+assert.equal(demo.readUInt32LE(4) + 8, demo.length);
+assert.equal(demo.readUInt32LE(24), 48000);
 assert.equal(read("v8-engine.blend").subarray(0, 7).toString(), "BLENDER");
 for (const page of ["index.html", "showcase.html"]) {
   const html = read(page).toString();
@@ -57,5 +83,5 @@ for (const name of fs
   assert.equal(result.status, 0, result.stderr);
 }
 console.log(
-  "Assets: 12 valid mesh templates, 865 GLB parts, Blender file, local references and JavaScript syntax passed.",
+  "Assets: 15 valid mesh templates, 1494 GLB parts, Blender file, audio demo, local references and JavaScript syntax passed.",
 );

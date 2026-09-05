@@ -9,6 +9,8 @@ type AudioGraph = {
   context: AudioContext;
   node: AudioWorkletNode;
   gain: GainNode;
+  analyser: AnalyserNode;
+  waveform: Float32Array<ArrayBuffer>;
 };
 type OrbitPointer = {
   id: number;
@@ -81,7 +83,7 @@ let last = performance.now(),
   audio: AudioGraph | null = null,
   audible = false,
   startingAudio = false;
-const camera: Camera = { yaw: 0.95, elevation: 0.4, zoom: 1 };
+const camera: Camera = { yaw: 2.2, elevation: 0.4, zoom: 1 };
 const assembly = Assembly.create();
 const orbitVelocity = { yaw: 0, elevation: 0 };
 let labels: Label[] = [],
@@ -254,7 +256,7 @@ $("angle").addEventListener("input", () => {
   crank = Number($("angle").value);
 });
 $("reset-view").onclick = () => {
-  Object.assign(camera, { yaw: 0.95, elevation: 0.4, zoom: 1 });
+  Object.assign(camera, { yaw: 2.2, elevation: 0.4, zoom: 1 });
   orbitVelocity.yaw = orbitVelocity.elevation = 0;
 };
 $("engine").addEventListener("pointerdown", (e) => {
@@ -340,7 +342,7 @@ $("engine").addEventListener(
     e.preventDefault();
     camera.zoom = Math.max(
       0.65,
-      Math.min(1.5, camera.zoom * Math.exp(-e.deltaY * 0.001)),
+      Math.min(2.2, camera.zoom * Math.exp(-e.deltaY * 0.001)),
     );
   },
   { passive: false },
@@ -382,9 +384,15 @@ $("sound").onclick = async () => {
         outputChannelCount: [2],
       });
       const gain = context.createGain();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = Math.min(
+        32768,
+        2 ** Math.ceil(Math.log2(context.sampleRate * 0.05 + 1024)),
+      );
+      const waveform = new Float32Array(analyser.fftSize);
       gain.gain.value = 0;
-      node.connect(gain).connect(context.destination);
-      audio = { context, node, gain };
+      node.connect(analyser).connect(gain).connect(context.destination);
+      audio = { context, node, gain, analyser, waveform };
       openingContext = null;
       audioParameters();
     }
@@ -478,10 +486,41 @@ function draw(now: number) {
   }
   px.beginPath();
   const rate = cfg.rpm / 15;
+  const liveAudio = audio && audible ? audio : null;
+  let signalStart = 0,
+    signalLength = 0;
+  if (liveAudio) {
+    liveAudio.analyser.getFloatTimeDomainData(liveAudio.waveform);
+    signalLength = Math.min(
+      liveAudio.waveform.length - 1024,
+      Math.round(liveAudio.context.sampleRate * 0.05),
+    );
+    const lastStart = liveAudio.waveform.length - signalLength;
+    signalStart = Math.max(1, lastStart - 1024);
+    while (
+      signalStart < lastStart &&
+      !(
+        liveAudio.waveform[signalStart - 1] <= 0 &&
+        liveAudio.waveform[signalStart] > 0
+      )
+    )
+      signalStart++;
+  }
+  pc.setAttribute(
+    "aria-label",
+    liveAudio
+      ? "Live synthesized exhaust waveform over 50 milliseconds"
+      : "Illustrated exhaust event timing over 50 milliseconds",
+  );
   for (let i = 0; i < pw; i++) {
     const t = (i / pw) * 0.05;
     const age = Engine.mod(t, 1 / rate);
-    const value = Math.exp(-age * 400) * Math.sin(age * 1800);
+    const value = liveAudio
+      ? liveAudio.waveform[
+          signalStart +
+            Math.min(signalLength - 1, Math.floor((i / pw) * signalLength))
+        ] * 1.6
+      : Math.exp(-age * 400) * Math.sin(age * 1800);
     const y = ph * 0.6 - value * ph * 0.4;
     if (i === 0) px.moveTo(i, y);
     else px.lineTo(i, y);

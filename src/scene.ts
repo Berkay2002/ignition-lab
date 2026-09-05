@@ -117,7 +117,31 @@ function init(canvas: HTMLCanvasElement): RendererState {
     program,
     shader(
       gl.FRAGMENT_SHADER,
-      `precision highp float;varying vec3 N;varying vec3 P;uniform vec4 color;uniform vec3 eye;uniform float metal;uniform float cutaway;uniform float picking;uniform vec3 pickColor;void main(){if(cutaway>.5&&P.x>.002)discard;if(picking>.5){gl_FragColor=vec4(pickColor,1.);return;}vec3 n=normalize(N);vec3 l=normalize(vec3(-.5,1.,.8));vec3 v=normalize(eye-P);float d=max(dot(n,l),0.);float fill=max(dot(n,normalize(vec3(.7,.4,-1.))),0.);float spec=pow(max(dot(n,normalize(l+v)),0.),36.+metal*48.);float rim=pow(1.-abs(dot(n,v)),3.);float grain=sin(P.x*4100.)*sin(P.y*3900.)*sin(P.z*4300.)*.015*(1.-metal);vec3 c=color.rgb*(.42+.58*d+.20*fill+grain)+vec3(spec*.48*metal+rim*.08*metal);gl_FragColor=vec4(c,color.a);}`,
+      `precision highp float;
+      varying vec3 N; varying vec3 P;
+      uniform vec4 color; uniform vec3 eye; uniform float metal;
+      uniform float cutaway; uniform float picking; uniform vec3 pickColor;
+      void main() {
+        if(cutaway>.5&&P.x>.002) discard;
+        if(picking>.5){gl_FragColor=vec4(pickColor,1.);return;}
+        vec3 n=normalize(N), v=normalize(eye-P);
+        if(dot(n,v)<0.) n=-n;
+        vec3 key=normalize(vec3(-.5,1.,.8)), fill=normalize(vec3(.9,.25,-.7));
+        float diffuse=max(dot(n,key),0.), bounce=max(dot(n,fill),0.);
+        float facing=max(dot(n,v),0.);
+        float fresnel=.04+.65*metal*pow(1.-facing,5.);
+        vec3 reflected=reflect(-v,n);
+        // Analytic studio softboxes give machined edges readable reflections without textures.
+        float softbox=pow(max(dot(reflected,normalize(vec3(-.5,1.,.65))),0.),24.);
+        float strip=pow(max(dot(reflected,normalize(vec3(.9,.55,-.8))),0.),70.);
+        float grain=sin(P.x*1700.)*sin(P.y*1900.)*sin(P.z*1600.);
+        float finish=1.+grain*.045*(1.-metal);
+        vec3 base=pow(color.rgb,vec3(2.2));
+        vec3 lit=base*(.28+.90*diffuse+.30*bounce)*finish;
+        lit+=mix(vec3(.65,.72,.8),base,.55*metal)*(softbox*.8+strip*.65)*(.12+.75*metal);
+        lit+=vec3(.18,.23,.28)*fresnel;
+        gl_FragColor=vec4(pow(max(lit,vec3(0.)),vec3(1./2.2)),color.a);
+      }`,
     ),
   );
   gl.linkProgram(program);
@@ -403,12 +427,34 @@ function render(
     part(type, c, basis, size, color, metal);
   }
   function bolt(c: Vec3, u: Vec3, r = 0.003) {
-    tube(c, add(c, u, 0.003), r, silver);
-    tube(add(c, u, 0.003), add(c, u, 0.0038), r * 0.43, dark);
+    tube(c, add(c, u, 0.0008), r * 1.2, steel, "tube");
+    tube(add(c, u, 0.0008), add(c, u, 0.004), r, silver, "hex");
   }
-  function pipe(points: Vec3[], r: number, color: Color = steel) {
-    for (let i = 1; i < points.length; i++)
-      tube(points[i - 1], points[i], r, color);
+  function pipe(points: Vec3[], r: number, color: Color = steel, metal = 1) {
+    // Catmull-Rom sweeps keep hose and manifold bends tangent through their guides.
+    let previous = points[0];
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[Math.max(0, i - 1)],
+        b = points[i],
+        c = points[i + 1],
+        d = points[Math.min(points.length - 1, i + 2)];
+      for (let step = 1; step <= 5; step++) {
+        const t = step / 5,
+          t2 = t * t,
+          t3 = t2 * t;
+        const next = map3(
+          b,
+          (v, j) =>
+            0.5 *
+            (2 * v +
+              (-a[j] + c[j]) * t +
+              (2 * a[j] - 5 * v + 4 * c[j] - d[j]) * t2 +
+              (-a[j] + 3 * v - 3 * c[j] + d[j]) * t3),
+        );
+        tube(previous, next, r, color, "cylinder", metal);
+        previous = next;
+      }
+    }
   }
   const head =
     Engine.r + Engine.rod + 0.012 + Engine.stroke / (model.cfg.compression - 1);
@@ -572,7 +618,7 @@ function render(
       "tube",
     );
     part(
-      "cylinder",
+      "piston",
       pos(k.distance - 0.004),
       basis,
       [0.041, 0.033, 0.041],
@@ -586,13 +632,6 @@ function render(
         [0.0415, 0.0014, 0.0415],
         dark,
       );
-    part(
-      "cylinder",
-      pos(k.distance + 0.013),
-      basis,
-      [0.035, 0.001, 0.035],
-      [0.78, 0.8, 0.8, 1],
-    );
     tube(add(k.center, k.n, -0.041), add(k.center, k.n, 0.041), 0.006, steel);
     // Valve lift uses smooth ideal stroke timing; it remains illustrative, not a cam design.
     group("valves", `Valve gear ${id}`, bank, id);
@@ -838,6 +877,325 @@ function render(
     const a = (crank * Math.PI) / 180 + (i * Math.PI) / 4;
     bolt([Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0.286], [0, 0, 1], 0.004);
   }
+  // Service hardware stays attached to its parent layer during disassembly.
+  const rubber: Color = [0.045, 0.055, 0.061, 1],
+    copper: Color = [0.55, 0.3, 0.16, 1],
+    ceramic: Color = [0.88, 0.86, 0.78, 1];
+  for (const bank of [-1, 1]) {
+    const u: Vec3 = [bank * Math.SQRT1_2, Math.SQRT1_2, 0],
+      n: Vec3 = [Math.SQRT1_2, -bank * Math.SQRT1_2, 0],
+      basis: Basis = [n, u, [0, 0, 1]],
+      pos = (d: number, z: number): Vec3 => [u[0] * d, u[1] * d, z];
+    group("block", `${bank < 0 ? "Left" : "Right"} casting ribs`, bank);
+    for (let i = 0; i < 5; i++) {
+      const zz = (i - 2) * 0.11;
+      box(
+        add(pos(0.123, zz), n, bank * 0.063),
+        [0.008, 0.09, 0.009],
+        cast,
+        basis,
+        "bevel",
+        0.35,
+      );
+    }
+    for (const zz of [-0.243, 0.243]) {
+      group("block", `${bank < 0 ? "Left" : "Right"} end casting`, bank);
+      const face = pos(0.13, zz),
+        out: Vec3 = [0, 0, Math.sign(zz)];
+      tube(face, add(face, out, 0.004), 0.029, steel, "tube");
+      tube(face, add(face, out, 0.002), 0.024, brass);
+      for (const side of [-1, 1]) {
+        const boss = add(pos(0.115, zz), n, side * 0.042);
+        tube(boss, add(boss, out, 0.009), 0.009, cast);
+        bolt(add(boss, out, 0.009), out, 0.004);
+      }
+      group("heads", `${bank < 0 ? "Left" : "Right"} head service ports`, bank);
+      tube(
+        pos(head + 0.023, zz),
+        add(pos(head + 0.023, zz), out, 0.006),
+        0.013,
+        steel,
+        "hex",
+      );
+    }
+    group("covers", `${bank < 0 ? "Left" : "Right"} V8 nameplate`, bank);
+    const badgeBasis: Basis = [[0, 0, -1], u, n];
+    box(
+      pos(head + 0.119, -0.005),
+      [0.081, 0.004, 0.046],
+      dark,
+      badgeBasis,
+      "bevel",
+      0.2,
+    );
+    part(
+      "badge",
+      pos(head + 0.1215, -0.005),
+      badgeBasis,
+      [0.058, 0.0012, 0.025],
+      silver,
+      0.9,
+    );
+    group("covers", `${bank < 0 ? "Left" : "Right"} cover breather`, bank);
+    const breather = pos(head + 0.121, 0.155);
+    tube(breather, add(breather, u, 0.019), 0.012, steel, "tube");
+    tube(add(breather, u, 0.018), add(breather, u, 0.025), 0.014, cover);
+    for (let i = 0; i < 3; i++)
+      tube(
+        add(breather, u, 0.02 + i * 0.002),
+        add(breather, u, 0.021 + i * 0.002),
+        0.0143,
+        silver,
+      );
+    for (let i = 0; i < 4; i++) {
+      const id = i * 2 + (bank < 0 ? 1 : 2),
+        zz = (i - 1.5) * 0.11;
+      group("heads", `Spark plug ${id}`, bank, id);
+      const plug = add(pos(head + 0.01, zz + 0.031), n, bank * 0.067),
+        out = map3(n, (v) => v * bank);
+      tube(plug, add(plug, out, 0.011), 0.0055, silver, "hex");
+      tube(add(plug, out, 0.01), add(plug, out, 0.029), 0.0038, ceramic);
+      for (let j = 0; j < 4; j++)
+        tube(
+          add(plug, out, 0.014 + j * 0.003),
+          add(plug, out, 0.0155 + j * 0.003),
+          0.0045,
+          ceramic,
+        );
+      group("covers", `Ignition coil & lead ${id}`, bank, id);
+      const coil = add(pos(head + 0.093, zz), n, bank * 0.072);
+      box(coil, [0.023, 0.025, 0.033], rubber, basis, "bevel", 0.1);
+      box(add(coil, u, 0.014), [0.02, 0.003, 0.025], steel, basis, "bevel");
+      const boot = add(plug, out, 0.031);
+      pipe(
+        [
+          add(coil, n, bank * 0.009),
+          add(coil, n, bank * 0.025),
+          add(boot, u, 0.025),
+          boot,
+        ],
+        0.003,
+        rubber,
+        0.1,
+      );
+      tube(
+        add(plug, out, 0.025),
+        add(plug, out, 0.036),
+        0.006,
+        rubber,
+        "cylinder",
+        0.1,
+      );
+      group("intake", `Fuel injector ${id}`, bank, id);
+      const injector: Vec3 = [bank * 0.075, 0.22, zz];
+      tube(injector, add(injector, u, 0.024), 0.005, brass);
+      box(
+        add(injector, u, 0.016),
+        [0.013, 0.015, 0.013],
+        rubber,
+        basis,
+        "bevel",
+        0.1,
+      );
+      group("exhaust", `Header flange & weld ${id}`, bank, id);
+      tube(
+        [bank * 0.205, 0.108, zz],
+        [bank * 0.207, 0.104, zz],
+        0.0132,
+        copper,
+        "tube",
+      );
+    }
+    group("intake", `${bank < 0 ? "Left" : "Right"} fuel rail`, bank);
+    tube(
+      [bank * 0.09, 0.242, -0.19],
+      [bank * 0.09, 0.242, 0.19],
+      0.007,
+      silver,
+    );
+    for (const zz of [-0.19, 0.19])
+      tube(
+        [bank * 0.09, 0.242, zz],
+        [bank * 0.09, 0.242, zz + 0.008],
+        0.0085,
+        brass,
+        "hex",
+      );
+  }
+  group("intake", "Throttle actuator & hose clamps");
+  box(
+    [0.033, 0.256, -0.193],
+    [0.022, 0.041, 0.037],
+    rubber,
+    axes,
+    "bevel",
+    0.1,
+  );
+  for (const zz of [-0.175, -0.213]) {
+    tube([0, 0.256, zz], [0, 0.256, zz - 0.003], 0.0303, silver, "tube");
+    bolt([0.024, 0.278, zz], [0, 1, 0], 0.003);
+  }
+  // Front accessory drive: alternator, water pump, idler and a continuous belt.
+  group("timing", "Water pump housing");
+  tube([0, 0.08, -0.295], [0, 0.08, -0.326], 0.031, cast);
+  pipe(
+    [
+      [0.02, 0.09, -0.302],
+      [0.057, 0.111, -0.309],
+      [0.066, 0.15, -0.305],
+    ],
+    0.013,
+    cast,
+  );
+  tube([0.066, 0.148, -0.305], [0.066, 0.158, -0.305], 0.015, silver, "tube");
+  group("timing", "Alternator");
+  const alt: Vec3 = [-0.124, 0.103, -0.278];
+  tube(add(alt, [0, 0, 1], -0.031), add(alt, [0, 0, 1], 0.043), 0.04, cast);
+  for (const dz of [-0.027, 0.028])
+    tube(
+      add(alt, [0, 0, 1], dz),
+      add(alt, [0, 0, 1], dz + 0.006),
+      0.043,
+      silver,
+      "tube",
+    );
+  for (let i = 0; i < 12; i++) {
+    const a = (i * Math.PI) / 6;
+    const radial: Vec3 = [Math.cos(a), Math.sin(a), 0],
+      tangent: Vec3 = [-Math.sin(a), Math.cos(a), 0];
+    box(
+      add(alt, radial, 0.039),
+      [0.01, 0.003, 0.043],
+      rubber,
+      [tangent, radial, [0, 0, 1]],
+      "bevel",
+      0.1,
+    );
+    tube(
+      add(add(alt, radial, 0.024), [0, 0, 1], -0.033),
+      add(add(alt, radial, 0.024), [0, 0, 1], -0.036),
+      0.007,
+      copper,
+    );
+  }
+  for (const yy of [0.066, 0.139]) {
+    box([-0.085, yy, -0.267], [0.074, 0.012, 0.019], cast, axes, "bevel");
+    bolt([-0.103, yy, -0.283], [0, 0, -1], 0.004);
+  }
+  const pulleys: [number, number, number, number][] = [
+    [0, 0, 0.05, 1],
+    [0, 0.08, 0.034, 1.47],
+    [-0.124, 0.103, 0.026, 1.92],
+    [0.075, 0.038, 0.018, -2.78],
+  ];
+  for (const [xx, yy, radius, ratio] of pulleys) {
+    group(
+      "timing",
+      xx < 0
+        ? "Alternator pulley"
+        : yy === 0.08
+          ? "Water pump pulley"
+          : xx > 0
+            ? "Belt tensioner"
+            : "Crank pulley",
+    );
+    tube([xx, yy, -0.32], [xx, yy, -0.335], radius, dark);
+    tube([xx, yy, -0.335], [xx, yy, -0.338], radius * 0.9, steel);
+    for (let j = 0; j < 5; j++) {
+      const a = (crank * ratio * Math.PI) / 180 + (j * Math.PI * 2) / 5;
+      tube(
+        [
+          xx + Math.cos(a) * radius * 0.6,
+          yy + Math.sin(a) * radius * 0.6,
+          -0.338,
+        ],
+        [
+          xx + Math.cos(a) * radius * 0.6,
+          yy + Math.sin(a) * radius * 0.6,
+          -0.339,
+        ],
+        radius * 0.13,
+        rubber,
+      );
+    }
+    bolt([xx, yy, -0.339], [0, 0, -1], 0.006);
+  }
+  group("timing", "Serpentine belt");
+  // External tangents and circular wrap keep the belt on the pulley rims.
+  const route = [pulleys[0], pulleys[3], pulleys[1], pulleys[2]];
+  const tangentAngles = route.map((a, i) => {
+    const b = route[(i + 1) % route.length],
+      dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    return Math.atan2(dy, dx) - Math.acos((a[2] - b[2]) / Math.hypot(dx, dy));
+  });
+  const belt: Vec3[] = [];
+  for (let i = 0; i < route.length; i++) {
+    const p = route[i],
+      start = tangentAngles[(i + route.length - 1) % route.length],
+      arc = Engine.mod(tangentAngles[i] - start, Math.PI * 2),
+      count = Math.max(2, Math.ceil(arc / 0.18));
+    for (let j = 0; j <= count; j++) {
+      const angle = start + (arc * j) / count;
+      belt.push([
+        p[0] + Math.cos(angle) * (p[2] + 0.001),
+        p[1] + Math.sin(angle) * (p[2] + 0.001),
+        -0.327,
+      ]);
+    }
+  }
+  belt.push(belt[0]);
+  for (let i = 1; i < belt.length; i++) {
+    const delta = sub(belt[i], belt[i - 1]),
+      along = norm(delta),
+      across: Vec3 = [-along[1], along[0], 0];
+    box(
+      add(belt[i - 1], delta, 0.5),
+      [0.003, Math.hypot(...delta), 0.01],
+      rubber,
+      [across, along, [0, 0, 1]],
+      "box",
+      0.05,
+    );
+  }
+  group("block", "Oil filter & mounting boss");
+  tube([0.09, -0.029, -0.13], [0.134, -0.029, -0.13], 0.025, cast);
+  tube([0.13, -0.029, -0.13], [0.196, -0.029, -0.13], 0.025, cover);
+  tube([0.194, -0.029, -0.13], [0.2, -0.029, -0.13], 0.023, steel);
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4;
+    tube(
+      [0.175, -0.029 + Math.cos(a) * 0.024, -0.13 + Math.sin(a) * 0.024],
+      [0.193, -0.029 + Math.cos(a) * 0.024, -0.13 + Math.sin(a) * 0.024],
+      0.0015,
+      silver,
+    );
+  }
+  group("block", "Starter motor & solenoid");
+  tube([-0.092, -0.048, 0.104], [-0.092, -0.048, 0.233], 0.027, steel);
+  tube([-0.092, -0.048, 0.229], [-0.092, -0.048, 0.246], 0.03, cast);
+  tube([-0.118, -0.029, 0.135], [-0.118, -0.029, 0.206], 0.013, dark);
+  bolt([-0.118, -0.029, 0.131], [0, 0, -1], 0.004);
+  group("pan", "Oil pickup & windage tray");
+  pipe(
+    [
+      [0, -0.019, -0.18],
+      [0.026, -0.052, -0.13],
+      [0.034, -0.103, -0.015],
+    ],
+    0.009,
+    silver,
+  );
+  part("cylinder", [0.034, -0.109, -0.015], axes, [0.027, 0.009, 0.027], steel);
+  for (let i = 0; i < 7; i++)
+    box(
+      [0, -0.05, -0.16 + i * 0.052],
+      [0.11, 0.003, 0.035],
+      steel,
+      axes,
+      "bevel",
+    );
+
   const opaque = commands.filter((c) => c.color[3] >= 1),
     transparent = commands.filter((c) => c.color[3] < 1);
   for (let i = 0; i < 16; i++)

@@ -17,6 +17,7 @@ export const publicFiles = [
   "v8-engine.glb",
   "v8-assembled.png",
   "v8-exploded.png",
+  "v8-exhaust-demo.wav",
   "LICENSE",
 ];
 

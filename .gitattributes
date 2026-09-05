@@ -3,4 +3,6 @@
 *.glb binary
 *.png binary
 *.webm binary
+*.wav binary
 blender-meshes.js linguist-generated=true
+model/assembly.json linguist-generated=true

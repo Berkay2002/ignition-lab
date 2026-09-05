@@ -2,7 +2,8 @@ export const layers = [
   {
     id: "block",
     name: "Cylinder block",
-    description: "The two cylinder banks, bore liners, and crankcase casting.",
+    description:
+      "Cylinder banks, bore liners, casting ribs, oil filter and starter motor.",
   },
   {
     id: "rotating",
@@ -18,7 +19,8 @@ export const layers = [
   {
     id: "pan",
     name: "Oil pan",
-    description: "The lower sump and its bolted sealing flange.",
+    description:
+      "The bolted sump, oil pickup and windage tray beneath the crank.",
   },
   {
     id: "heads",
@@ -34,13 +36,13 @@ export const layers = [
   {
     id: "covers",
     name: "Valve covers",
-    description: "Removable covers enclose the rocker assemblies.",
+    description: "Ribbed covers with breathers, ignition coils and plug leads.",
   },
   {
     id: "intake",
     name: "Intake manifold",
     description:
-      "The central plenum distributes the intake charge to both banks.",
+      "The plenum and swept runners feed both banks, with rails and eight fuel injectors.",
   },
   {
     id: "exhaust",
@@ -51,7 +53,7 @@ export const layers = [
     id: "timing",
     name: "Timing & flywheel",
     description:
-      "A 2:1 timing drive links crank and cam. The flywheel turns with the crank.",
+      "A 2:1 timing drive, flywheel, alternator, water pump and serpentine belt.",
   },
 ] satisfies {
   id:

@@ -237,5 +237,8 @@ export const Geometry = {
     sump: box(true),
     flange: box(),
     coverShell: box(true),
+    hex: round(),
+    badge: box(),
+    piston: round(),
   }),
 };

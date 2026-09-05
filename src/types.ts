@@ -21,7 +21,10 @@ export type MeshName =
   | "spring"
   | "sump"
   | "flange"
-  | "coverShell";
+  | "coverShell"
+  | "hex"
+  | "badge"
+  | "piston";
 export type MeshData = Record<MeshName, number[]>;
 
 export function map3(
