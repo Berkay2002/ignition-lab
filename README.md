@@ -1,6 +1,6 @@
 # Ignition Lab
 
-A V8 engine built from equations, with an open Blender assembly. Turn the throttle, follow the pistons, watch pressure become work, and hear the exhaust pulses. Everything runs in the browser with **zero runtime dependencies**.
+A V8 engine built from equations, with an open Blender assembly. Turn the throttle, follow the pistons, watch pressure become work, and hear the exhaust pulses. Written in strict TypeScript and compiled to native browser modules, with **zero runtime dependencies**.
 
 [![Model and asset checks](https://github.com/Berkay2002/ignition-lab/actions/workflows/checks.yml/badge.svg)](https://github.com/Berkay2002/ignition-lab/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-567b90.svg)](LICENSE)
@@ -56,35 +56,40 @@ In Blender, select **Assembly controls** and change its **explode** custom prope
 ```sh
 git clone https://github.com/Berkay2002/ignition-lab.git
 cd ignition-lab
-python -m http.server 8765 --bind 127.0.0.1
+npm ci
+npm run dev
 ```
 
-Open [localhost:8765](http://localhost:8765). There is no install or bundling step for local use. A modern browser with WebGL is required; audio also needs AudioWorklet and a secure context, which localhost provides.
+Use Node 22 or 24 LTS. Open [localhost:8765](http://localhost:8765). The development server recompiles TypeScript and copies changed HTML/CSS; refresh the browser after edits. A modern browser with WebGL is required; audio also needs AudioWorklet and a secure context, which localhost provides.
 
 ## Verify and deploy
 
-With Node 22 LTS:
+With dependencies installed:
 
 ```sh
-npm test
+npm run check
 npm run build
 ```
 
-The tests check 81 parameter combinations, geometric constraints, shared crank pins, positive finite pressures, energy balance, integration convergence, and bounded audio at 600, 2400, and 7000 RPM. Asset checks validate mesh normals, the 865-part GLB, local references, and JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
+The check command runs strict typechecking, formatting checks, a production build, and the tests. The tests cover 81 parameter combinations, geometric constraints, shared crank pins, positive finite pressures, energy balance, integration convergence, and bounded audio at 600, 2400, and 7000 RPM. Asset checks validate mesh normals, the 865-part GLB, local references, and compiled JavaScript syntax. GitHub Actions runs these checks on pushes and pull requests.
 
 At the default settings the model produces 663.2 J per cylinder per cycle and 106.1 kW indicated power. The energy residual is 0.042 J; halving the integration step changes work by 0.014 J. These checks establish internal consistency, not agreement with an actual engine.
 
-Vercel builds a static site from the explicit file list in `scripts/build.mjs`. Connect a fork to Vercel using the included `vercel.json`; no environment variables or backend are required.
+Vercel runs `npm ci --include=dev` and `npm run build`. TypeScript emits ES2022 modules into `dist/js/`, and `scripts/site.mjs` copies the public pages and assets into `dist/`. Connect a fork to Vercel using the included `vercel.json`; no environment variables or backend are required. TypeScript and Prettier are pinned development dependencies, with versions recorded in the lockfile.
+
+The generated `blender-meshes.js` remains an asset rather than a hand-maintained TypeScript source file. Its data is validated at the typed renderer boundary. The audio worklet is compiled separately; its input messages are checked before updating processor state.
 
 ## Inside the repo
 
 | File | Responsibility |
 | --- | --- |
-| `engine.js` | Geometry, burn curve, energy integration, cycle work |
-| `scene.js`, `assembly.js` | WebGL assembly, picking, layers, cutaway, explosion |
-| `blender-meshes.js`, `geometry.js` | Refined mesh templates and procedural fallback |
-| `renderer.js` | Pressure-volume plot |
-| `app.js` | UI state, animation, orbit, Web Audio worklet |
+| `src/engine.ts` | Geometry, burn curve, energy integration, cycle work |
+| `src/scene.ts`, `src/assembly.ts` | WebGL assembly, picking, layers, cutaway, explosion |
+| `blender-meshes.js`, `src/geometry.ts` | Refined mesh templates and procedural fallback |
+| `src/renderer.ts` | Pressure-volume plot |
+| `src/app.ts` | Typed UI state, animation, orbit, audio lifecycle |
+| `src/exhaust-worklet.ts` | Typed audio processor and message boundary |
+| `src/types.ts`, `src/blender-assets.ts` | Spatial/color tuples, shared contracts, asset validation |
 | `model.css`, `ui.css`, `style.css` | Typeset model dialog, shared theme, overlay layout |
 | `showcase.html` | Project page, demos, renders, and asset downloads |
 | `tests/` | Numerical, audio, and asset verification |

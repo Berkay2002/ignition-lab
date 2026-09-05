@@ -1,36 +1,61 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const root = path.join(__dirname, '..');
-const read = name => fs.readFileSync(path.join(root, name));
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const root = path.join(__dirname, "..");
+const read = (name) => fs.readFileSync(path.join(root, name));
 const context = {};
-vm.runInNewContext(read('blender-meshes.js').toString(), context);
+vm.runInNewContext(read("blender-meshes.js").toString(), context);
 assert.equal(context.BlenderAssetInfo.parts, 865);
-assert.equal(context.BlenderAssetInfo.validatedWith, '5.2.1 LTS');
+assert.equal(context.BlenderAssetInfo.validatedWith, "5.2.1 LTS");
 assert.equal(Object.keys(context.BlenderMeshes).length, 12);
 for (const [name, mesh] of Object.entries(context.BlenderMeshes)) {
-  assert.ok(mesh.length > 0 && mesh.length % 18 === 0, `${name}: complete position/normal triangles`);
-  for (const value of mesh) assert.ok(Number.isFinite(value), `${name}: finite geometry`);
+  assert.ok(
+    mesh.length > 0 && mesh.length % 18 === 0,
+    `${name}: complete position/normal triangles`,
+  );
+  for (const value of mesh)
+    assert.ok(Number.isFinite(value), `${name}: finite geometry`);
   for (let i = 3; i < mesh.length; i += 6) {
-    assert.ok(Math.abs(Math.hypot(mesh[i], mesh[i + 1], mesh[i + 2]) - 1) < 0.005, `${name}: normalized normals`);
+    assert.ok(
+      Math.abs(Math.hypot(mesh[i], mesh[i + 1], mesh[i + 2]) - 1) < 0.005,
+      `${name}: normalized normals`,
+    );
   }
 }
-const glb = read('v8-engine.glb');
-assert.equal(glb.subarray(0, 4).toString(), 'glTF');
+const glb = read("v8-engine.glb");
+assert.equal(glb.subarray(0, 4).toString(), "glTF");
 assert.equal(glb.readUInt32LE(4), 2);
 assert.equal(glb.readUInt32LE(8), glb.length);
-const scene = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString().trim());
-assert.equal(scene.nodes.filter(node => node.mesh !== undefined).length, 865);
-assert.equal(read('v8-engine.blend').subarray(0, 7).toString(), 'BLENDER');
-for (const page of ['index.html', 'showcase.html']) {
+const scene = JSON.parse(
+  glb
+    .subarray(20, 20 + glb.readUInt32LE(12))
+    .toString()
+    .trim(),
+);
+assert.equal(scene.nodes.filter((node) => node.mesh !== undefined).length, 865);
+assert.equal(read("v8-engine.blend").subarray(0, 7).toString(), "BLENDER");
+for (const page of ["index.html", "showcase.html"]) {
   const html = read(page).toString();
   for (const [, reference] of html.matchAll(/(?:src|href)="([^"#?]+)"/g)) {
     if (/^(https?:|\/|\.)/.test(reference)) continue;
-    assert.ok(fs.existsSync(path.join(root, reference)), `${page}: ${reference} exists`);
+    assert.ok(
+      fs.existsSync(path.join(root, "dist", reference)),
+      `${page}: ${reference} exists`,
+    );
   }
 }
-for (const name of fs.readdirSync(root).filter(name => name.endsWith('.js'))) {
-  new vm.Script(read(name).toString(), { filename: name });
+const { spawnSync } = require("node:child_process");
+for (const name of fs
+  .readdirSync(path.join(root, "dist/js"))
+  .filter((name) => name.endsWith(".js"))) {
+  const result = spawnSync(
+    process.execPath,
+    ["--check", path.join(root, "dist/js", name)],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
 }
-console.log('Assets: 12 valid mesh templates, 865 GLB parts, Blender file, local references and JavaScript syntax passed.');
+console.log(
+  "Assets: 12 valid mesh templates, 865 GLB parts, Blender file, local references and JavaScript syntax passed.",
+);

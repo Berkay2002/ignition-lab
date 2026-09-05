@@ -3,3 +3,4 @@
 *.glb binary
 *.png binary
 *.webm binary
+blender-meshes.js linguist-generated=true

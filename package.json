@@ -6,10 +6,20 @@
   "author": "Berkay Orhan",
   "license": "MIT",
   "scripts": {
-    "test": "node tests/engine.cjs && node tests/audio.cjs && node tests/assets.cjs",
-    "build": "node scripts/build.mjs"
+    "dev": "node scripts/dev.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "format": "prettier --write src scripts tests package.json tsconfig.json vercel.json .github/workflows/checks.yml",
+    "format:check": "prettier --check src scripts tests package.json tsconfig.json vercel.json .github/workflows/checks.yml",
+    "test": "npm run build && node tests/engine.mjs && node tests/audio.cjs && node tests/assets.cjs",
+    "check": "npm run typecheck && npm run format:check && npm test"
   },
   "engines": {
-    "node": "22.x"
-  }
+    "node": "22.x || 24.x"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
+  },
+  "type": "module"
 }

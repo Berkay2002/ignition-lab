@@ -1,21 +1,48 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "node scripts/build.mjs",
-  "installCommand": "",
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci --include=dev",
   "outputDirectory": "dist",
   "headers": [
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-    ] },
-    { "source": "/v8-engine.blend", "headers": [
-      { "key": "Content-Type", "value": "application/octet-stream" },
-      { "key": "Content-Disposition", "value": "attachment; filename=\"v8-engine.blend\"" }
-    ] },
-    { "source": "/v8-engine.glb", "headers": [
-      { "key": "Content-Type", "value": "model/gltf-binary" },
-      { "key": "Content-Disposition", "value": "attachment; filename=\"v8-engine.glb\"" }
-    ] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/v8-engine.blend",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/octet-stream"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"v8-engine.blend\""
+        }
+      ]
+    },
+    {
+      "source": "/v8-engine.glb",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "model/gltf-binary"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"v8-engine.glb\""
+        }
+      ]
+    }
   ]
 }

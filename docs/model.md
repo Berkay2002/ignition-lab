@@ -2,13 +2,14 @@
 
 A library-free browser engine lab. WebGL draws the movable parts, Canvas draws the pressure loop, and Web Audio synthesizes the exhaust events.
 
-Open `index.html` directly for the visual simulation, or serve this folder for the most reliable audio support:
+Install Node 22 or 24 LTS, then run:
 
-```powershell
-python -m http.server 8765 --bind 127.0.0.1
+```sh
+npm ci
+npm run dev
 ```
 
-Then open http://127.0.0.1:8765. Click Start sound to enable audio.
+Open http://127.0.0.1:8765 and click Start sound to enable audio. The production build in `dist/` can be served by any static HTTP host.
 
 Drag the engine to orbit; release for a short eased stop. Scroll to zoom. Arrow keys also rotate the focused canvas. Reset view restores the camera. Select a cylinder to follow its pressure trace and work integral. Scrubbing crank angle pauses animation. Visual speed controls animation only; sound follows Engine speed. The small info control opens the typeset equations and model assumptions.
 
@@ -38,14 +39,15 @@ Browser checks also covered assembly presets, direct part picking, isolation and
 
 ## Files
 
-- `engine.js`: geometry and thermodynamic cycle.
-- `scene.js`: native WebGL assembly, picking, lighting, and camera.
-- `assembly.js`: layer definitions and view state.
+- `src/engine.ts`: geometry and thermodynamic cycle.
+- `src/scene.ts`: native WebGL assembly, picking, lighting, and camera.
+- `src/assembly.ts`: layer definitions and view state.
 - `blender-meshes.js`: Blender-refined mesh data.
-- `geometry.js`: procedural fallback meshes.
+- `src/geometry.ts`: procedural fallback meshes.
 - `v8-engine.blend` / `v8-engine.glb`: editable assembly and interchange export.
-- `renderer.js`: pressure-volume chart.
-- `app.js`: controls, animation, and audio worklet.
+- `src/renderer.ts`: pressure-volume chart.
+- `src/app.ts`: typed controls, animation, and audio lifecycle.
+- `src/exhaust-worklet.ts`: typed audio processor and validated control messages.
 - `style.css`: full-screen scene and responsive overlay cards.
 
 Background: [NASA cycle thermodynamics](https://www.grc.nasa.gov/www/k-12/BGP/ottoa.html) and [NASA gas work](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/work-done-by-a-gas-3/).
