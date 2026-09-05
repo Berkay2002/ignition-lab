@@ -12,7 +12,7 @@
     const {ctx,w,h}=setup(canvas), left=44, right=w-10, top=27, bottom=h-38;
     const maxP=Math.ceil(model.peak/1e6)*10, maxV=Math.ceil(Engine.volume(180,model.cfg.compression)*1e6/100)*100;
     const x=v=>left+v*1e6/maxV*(right-left),y=p=>bottom-p/1e5/maxP*(bottom-top);
-    ctx.font='10px Consolas,monospace';ctx.fillStyle='#596d7b';ctx.fillText('Pressure / bar',0,11);
+    ctx.font='10px Consolas,monospace';ctx.textAlign='left';ctx.fillStyle='#596d7b';ctx.fillText('Pressure / bar',0,11);
     ctx.lineWidth=.6;ctx.setLineDash([2,3]);
     for(let i=0;i<=5;i++){
       const py=bottom-i/5*(bottom-top);ctx.strokeStyle='#dce4e9';ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(right,py);ctx.stroke();ctx.textAlign='right';ctx.fillText((maxP*i/5).toFixed(0),left-8,py+3);
